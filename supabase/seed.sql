@@ -1,0 +1,2 @@
+-- Seed data for local development. Intentionally empty.
+-- Add test invites here only; never commit real member emails or secrets.
