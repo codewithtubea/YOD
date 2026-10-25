@@ -3,13 +3,18 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { readSupabaseEnv } from "@/lib/env";
 
+function withPrivateHeaders(response: NextResponse) {
+  response.headers.set("Cache-Control", "no-store, max-age=0");
+  return response;
+}
+
 export async function updateSession(request: NextRequest) {
   const env = readSupabaseEnv();
 
   if (!env.ok) {
-    // Let the app render so /setup-check can explain what is missing.
+    // Let the app render so /sign-in can explain what is missing.
     return {
-      response: NextResponse.next({ request }),
+      response: withPrivateHeaders(NextResponse.next({ request })),
       claims: null,
     };
   }
@@ -44,7 +49,7 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
 
   return {
-    response: supabaseResponse,
+    response: withPrivateHeaders(supabaseResponse),
     claims: data?.claims ?? null,
   };
 }

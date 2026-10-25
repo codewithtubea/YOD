@@ -1,1 +1,105 @@
 @import "tailwindcss";
+
+@theme {
+  --color-canvas: #fbf8f1;
+  --color-surface: #fffdf8;
+  --color-surface-soft: #f6f1e7;
+  --color-line: #e7dfd0;
+  --color-ink: #23211c;
+  --color-ink-soft: #5e5a50;
+  --color-forest: #16352a;
+  --color-forest-hover: #1f4436;
+  --color-on-forest: #fbf8f1;
+  --color-sage: #b7cdba;
+  --color-sage-soft: #e7eee7;
+  --color-gold: #866628;
+  --color-gold-soft: #f1e6cf;
+  --color-link: #1f4f3d;
+  --color-focus: #1f4f3d;
+  --color-danger: #9f2d20;
+  --color-danger-soft: #fdf0ee;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  --font-serif: var(--font-fraunces), ui-serif, Georgia, "Times New Roman",
+    serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-canvas: #10150f;
+    --color-surface: #18201a;
+    --color-surface-soft: #1d271f;
+    --color-line: #2c382f;
+    --color-ink: #f3eee4;
+    --color-ink-soft: #b7b1a5;
+    --color-forest: #2f6b52;
+    --color-forest-hover: #3a7d61;
+    --color-on-forest: #fbf8f1;
+    --color-sage: #355040;
+    --color-sage-soft: #1c2a21;
+    --color-gold: #d6b878;
+    --color-gold-soft: #2a2318;
+    --color-link: #a9d3b8;
+    --color-focus: #a9d3b8;
+    --color-danger: #f0a79e;
+    --color-danger-soft: #2a1613;
+  }
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: var(--color-gold-soft);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+.ambient-auth {
+  background-image:
+    radial-gradient(
+      100% 60% at 50% -10%,
+      color-mix(in oklab, var(--color-gold) 14%, transparent),
+      transparent 65%
+    ),
+    radial-gradient(
+      80% 50% at 90% 105%,
+      color-mix(in oklab, var(--color-sage) 18%, transparent),
+      transparent 70%
+    );
+  background-repeat: no-repeat;
+}
+
+@media (prefers-color-scheme: dark) {
+  .ambient-auth {
+    opacity: 0.55;
+  }
+}
