@@ -3,9 +3,11 @@ import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 
 import { SignInForm } from "./sign-in-form";
+import { LivingSky } from "@/components/motion/living-sky";
 import { getAuthContext } from "@/lib/auth";
 import { readSupabaseEnv } from "@/lib/env";
 import { safeNextPath } from "@/lib/redirect";
+import { getSkyPeriod } from "@/lib/sky";
 import { signOut } from "@/lib/actions/sign-out";
 
 export const metadata: Metadata = {
@@ -14,17 +16,16 @@ export const metadata: Metadata = {
 };
 
 const ERROR_MESSAGES: Record<string, string> = {
-  link_browser:
-    "That link opened in a different browser, so it couldn't sign you in. Enter the 6-digit code from the email instead, or request a new one.",
-  link_expired:
-    "That sign-in link has expired. Request a new one below.",
-  link_invalid:
-    "That sign-in link is no longer valid. Request a new one below.",
+  link_browser: "That link can't sign you in. Use your email and password.",
+  link_expired: "That link has expired. Use your email and password.",
+  link_invalid: "That link is no longer valid. Use your email and password.",
   inactive: "Your access is paused. Contact the circle admin.",
+  approval: "Your account is waiting for approval. Sign in to see the waiting room.",
   profile:
-    "We couldn't finish setting up your account. Sign out and try again, or contact the circle admin.",
-  config: "Sign-in isn't fully set up yet. Ask the circle admin.",
-  auth: "We couldn't complete sign-in. Request a new code and try again.",
+    "We couldn't finish setting up your account. Sign in again, or contact the circle admin.",
+  config:
+    "Sign-in isn't fully set up yet. Ask the circle admin to check the membership database.",
+  auth: "We couldn't complete sign-in. Try again.",
 };
 
 type SearchParams = Promise<
@@ -48,7 +49,11 @@ function AuthScreen({
 }) {
   return (
     <main className="relative flex min-h-dvh flex-col overflow-hidden bg-canvas">
-      <div aria-hidden className="ambient-auth pointer-events-none absolute inset-0" />
+      <LivingSky
+        contained
+        period={getSkyPeriod()}
+        className="opacity-80"
+      />
 
       <div className="relative mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-5 py-12 sm:px-6">
         <div className="mb-8 text-center">
@@ -69,8 +74,8 @@ function AuthScreen({
         {children}
 
         <p className="mx-auto mt-8 max-w-xs text-center text-xs leading-relaxed text-ink-soft/80">
-          Private and invite-only. If you need an invitation, ask someone in
-          the circle.
+          A private circle. New accounts wait for a gentle admin approval
+          before they can enter.
         </p>
       </div>
     </main>
@@ -100,17 +105,23 @@ export default async function SignInPage({
   const errorKey = firstValue(params.error);
   const initialError = errorKey
     ? (ERROR_MESSAGES[errorKey] ??
-      "We couldn't complete sign-in. Request a new code and try again.")
+      "We couldn't complete sign-in. Try again.")
     : null;
-  const initialNotice = firstValue(params.signedOut)
-    ? "You're signed out. Sign in again when you're ready."
-    : null;
+  const initialNotice = firstValue(params.deleted)
+    ? "Your account has been deleted. Thank you for being part of the circle."
+    : firstValue(params.signedOut)
+      ? "You're signed out. Sign in again when you're ready."
+      : null;
 
   const env = readSupabaseEnv();
   const context = env.ok ? await getAuthContext() : null;
 
   if (context?.membership?.status === "active") {
     redirect(next);
+  }
+
+  if (context?.membership?.status === "pending") {
+    redirect("/waiting");
   }
 
   if (!env.ok) {
@@ -136,7 +147,7 @@ export default async function SignInPage({
   }
 
   if (context) {
-    const isPaused = context.membership?.status === "suspended";
+    const isPaused = context.membership?.status === "deactivated";
     const isConfigError = context.error === "config";
 
     return (
@@ -153,7 +164,7 @@ export default async function SignInPage({
           isPaused
             ? "You're signed in, but this account cannot enter the circle right now. Contact the circle admin if you think this is a mistake."
             : isConfigError
-              ? "Your session is valid, but the membership database isn't ready yet. Ask the circle admin to finish setup."
+              ? "Your session is valid, but the membership database is not responding. Ask the circle admin to check it."
               : "Your session is valid, but we couldn't find your membership. Sign out and try again, or contact the circle admin."
         }
       >
@@ -168,7 +179,7 @@ export default async function SignInPage({
     <AuthScreen
       eyebrow="Sign in"
       title="Welcome back"
-      description="Sign in with the email you were invited with. We'll send a link and a 6-digit code."
+      description="Sign in with the email and password for your account."
     >
       <SignInForm
         next={next}

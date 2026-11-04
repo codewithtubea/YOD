@@ -4,9 +4,11 @@ Persistent rules for AI agents and humans working in this repo. Read this before
 
 ## Product
 
-YOD Circle is a private, invite-only community for a small Christian circle: one Bible chapter a day,
-reflections/questions, prayer, affirmations, and weekly check-ins. Optimise for a member arriving from
-WhatsApp on a phone: the daily action must take under ~10 seconds. Care, not surveillance.
+YOD Circle is a private, approval-gated community for a small Christian circle: one Bible chapter a
+day, reflections/questions, prayer, affirmations, and weekly check-ins. Anyone may request an account
+with an email and password; an admin approves each request before entry. Invites pre-approve a specific
+email. Optimise for a member arriving from WhatsApp on a phone: the daily action must take under ~10
+seconds. Care, not surveillance.
 
 ## Stack
 
@@ -52,10 +54,18 @@ session refresh there. `cacheComponents` is disabled for now (decision D13).
 - Roles live in a member-unwritable table; admin checks via a `security definer` `is_admin()` helper
   with `set search_path = ''`.
 - Service-role / secret key never in client code or `NEXT_PUBLIC_*`. No secrets in logs or commits.
-- Invite-only: an `invites` allowlist gates profile creation/sign-in. No open signup.
+- Registration is approval-gated: a new account starts `pending`, may read only its own profile and the
+  waiting room, and enters the circle only after an admin approves it. An `invites` row pre-approves one
+  email and writes the role atomically with the profile. Never let a pending or deactivated account
+  reach member content.
 - Private prayer and admin-only check-ins must not appear in any public query, feed, notification,
   recap, search, or log. Test this explicitly.
 - Validate all writes server-side with Zod and constrain in Postgres (lengths, enums, NOT NULL, unique).
+- Members must never read another member's email. Member-facing profile reads use `member_directory`,
+  not raw `profiles` joins.
+- No dead controls. If a setting or feature does not exist, do not render its toggle or button.
+- Tests that touch a Supabase project run against **staging only**. Refuse production project ref
+  `mfcmqvgypomcfbrqiqrm`. Never claim a test passed without observed output.
 - Soft-delete user content; hard delete only via explicit admin/account-deletion path.
 - Storage buckets private by default; signed URLs; size/type limits.
 - Never disable a security check to make a test pass.
@@ -73,8 +83,8 @@ session refresh there. `cacheComponents` is disabled for now (decision D13).
 
 Warm cream background, forest green primary, sage secondary, restrained muted gold accent, warm
 near-black text (never pure black). Serif headings (Fraunces), clean sans UI (Inter/DM Sans). Dark mode
-supported. Mobile-first: bottom tab bar on mobile, slim top nav on desktop. Four primary destinations:
-Today, Prayer, Affirmation, Check-in. One primary action per screen. Generous whitespace, subtle borders,
+supported. Mobile-first: bottom tab bar on mobile, slim top nav on desktop. Primary destinations:
+Today, Prayer, Affirmation, and Check-in once it ships. One primary action per screen. Generous whitespace, subtle borders,
 accessible contrast (4.5:1), large tap targets.
 
 Motion: ambient light rays and gold motes; small "gift" moments (Amen wings, dove, answered sunrise,
@@ -90,5 +100,7 @@ project, reverent and abstract, no faces.
 - Commit after each meaningful step with clear messages. Never commit `.env.local` or secrets.
 - Ask before destructive actions or public deployment. Otherwise choose a sensible default and record
   it in `PROJECT_PLAN.md` under Decisions.
+- Keep the privacy table honest: every shipped member-facing feature needs a row in
+  `src/lib/account/privacy.ts`, covered by the unit test.
 - Keep `README.md` and `PROJECT_PLAN.md` current. No dead buttons: unbuilt features are not shown.
 - Server Components by default; client components only for interactivity. Accessible by default.

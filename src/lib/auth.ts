@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { readSupabaseEnv } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
@@ -47,19 +47,45 @@ export const getAuthContext = cache(async (): Promise<AuthContext | null> => {
   };
 });
 
+const devPreview =
+  process.env.NODE_ENV === "development" && process.env.DEV_PREVIEW === "true";
+
+export const PREVIEW_USER_ID = "00000000-0000-0000-0000-000000000000";
+
+const previewMembership: Membership = {
+  display_name: "Preview",
+  role: "admin",
+  status: "active",
+};
+
 export async function requireActiveMember(): Promise<{
   userId: string;
   membership: Membership;
 }> {
+  if (devPreview) {
+    return { userId: PREVIEW_USER_ID, membership: previewMembership };
+  }
+
   const context = await getAuthContext();
 
   if (!context) redirect("/sign-in");
   if (!context.membership) {
     redirect(`/sign-in?error=${context.error ?? "profile"}`);
   }
+  if (context.membership.status === "pending") {
+    redirect("/waiting");
+  }
   if (context.membership.status !== "active") {
     redirect("/sign-in?error=inactive");
   }
 
   return { userId: context.userId, membership: context.membership };
+}
+
+export async function requireAdmin() {
+  const context = await requireActiveMember();
+
+  if (context.membership.role !== "admin") notFound();
+
+  return context;
 }

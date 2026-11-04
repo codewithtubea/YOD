@@ -92,7 +92,13 @@ export async function GET(request: NextRequest) {
       return signInWith("error=profile");
     }
 
-    if ((membership as { status?: string }).status !== "active") {
+    const status = (membership as { status?: string }).status;
+
+    if (status === "pending") {
+      return noStoreRedirect(new URL("/waiting", requestUrl.origin));
+    }
+
+    if (status !== "active") {
       await supabase.auth.signOut();
       return signInWith("error=inactive");
     }
