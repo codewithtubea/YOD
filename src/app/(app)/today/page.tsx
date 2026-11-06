@@ -33,6 +33,7 @@ import { MemberTour } from "@/components/study/member-tour";
 import { ReadingActions } from "@/components/study/reading-actions";
 import { AnnouncementBanner } from "@/components/study/announcement-banner";
 import { SermonShelf } from "@/components/study/sermon-shelf";
+import { getMyAccount, getTodayBirthdays } from "@/lib/account/data";
 
 export const metadata: Metadata = {
   title: "Today",
@@ -119,7 +120,7 @@ export default async function TodayPage({
 
   const date = requested ?? today;
   const catchingUp = date < today;
-  const [data, announcement, sermons, affirmation, checkIn] = await Promise.all([
+  const [data, announcement, sermons, affirmation, checkIn, birthdays, account] = await Promise.all([
     getTodayData({ planDate: date }),
     !catchingUp ? getCurrentAnnouncement() : Promise.resolve(null),
     !catchingUp
@@ -127,7 +128,25 @@ export default async function TodayPage({
       : Promise.resolve({ available: false, links: [] }),
     getAffirmationByDate(date),
     getCheckInData(),
+    getTodayBirthdays(),
+    getMyAccount(),
   ]);
+
+  const currentAccount = account.account;
+  const birthdayNotice =
+    birthdays.available && birthdays.names.length > 0
+      ? birthdays.names.length === 1
+        ? `${birthdays.names[0]} has a birthday today.`
+        : `${birthdays.names.join(", ")} have birthdays today.`
+      : null;
+
+  const birthdayMessage =
+    birthdayNotice && currentAccount
+      ? birthdays.names.some((name) => name === currentAccount.displayName)
+        ? `Happy birthday, ${currentAccount.displayName}! ${birthdayNotice}`
+        : birthdayNotice
+      : birthdayNotice;
+
   const viewer = {
     userId,
     displayName: membership.display_name,
@@ -141,6 +160,20 @@ export default async function TodayPage({
   return (
     <div className="space-y-7">
       <MemberTour userId={userId} forceOpen={params.tour === "1"} />
+
+      {birthdayMessage ? (
+        <section aria-live="polite">
+          <Card variant="gold" padding="sm">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 text-2xl" aria-hidden>🎉</span>
+              <div>
+                <p className="type-caption font-semibold text-gold">Birthday</p>
+                <h2 className="mt-1 type-heading text-ink">{birthdayMessage}</h2>
+              </div>
+            </div>
+          </Card>
+        </section>
+      ) : null}
 
       {announcement ? <AnnouncementBanner announcement={announcement} /> : null}
 

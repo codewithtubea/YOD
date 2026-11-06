@@ -10,6 +10,7 @@ import {
   displayNameSchema,
   emailSchema,
   joinPasswordSchema,
+  birthdaySchema,
 } from "@/lib/validation/auth";
 
 export type JoinResult =
@@ -30,11 +31,15 @@ export async function join(input: {
   email: string;
   password: string;
   displayName: string;
+  birthday?: string;
   next?: string;
 }): Promise<JoinResult> {
   const email = emailSchema.safeParse(input.email);
   const password = joinPasswordSchema.safeParse(input.password);
   const displayName = displayNameSchema.safeParse(input.displayName);
+  const birthdayResult = input.birthday
+    ? birthdaySchema.safeParse(input.birthday)
+    : { success: true as const, data: null };
 
   if (!email.success) {
     return { ok: false, message: "Enter a valid email address." };
@@ -44,6 +49,12 @@ export async function join(input: {
   }
   if (!password.success) {
     return { ok: false, message: password.error.issues[0]?.message ?? "Choose a password." };
+  }
+  if (!birthdayResult.success) {
+    return {
+      ok: false,
+      message: birthdayResult.error.issues[0]?.message ?? "Choose a valid birthday.",
+    };
   }
 
   if (!readSupabaseEnv().ok) {
@@ -60,7 +71,7 @@ export async function join(input: {
       email: email.data,
       password: password.data,
       options: {
-        data: { display_name: displayName.data },
+        data: { display_name: displayName.data, birthday: birthdayResult.data },
         emailRedirectTo: `${site}/auth/callback?next=${encodeURIComponent(next)}`,
       },
     });

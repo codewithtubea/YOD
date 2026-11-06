@@ -85,6 +85,7 @@ function OnboardingExperience({
   });
   const [name, setName] = useState(account.displayName);
   const [bio, setBio] = useState(account.bio ?? "");
+  const [birthday, setBirthday] = useState(account.birthday ?? "");
   const [pending, setPending] = useState(false);
   const [errors, setErrors] = useState<Record<string, string[]>>();
   const [platform] = useState<Platform>(() =>
@@ -124,7 +125,7 @@ function OnboardingExperience({
     setPending(true);
     setErrors(undefined);
 
-    const profile = await saveProfile({ displayName: name, bio });
+    const profile = await saveProfile({ displayName: name, bio, birthday });
     if (!profile.ok) {
       setPending(false);
       if (profile.fieldErrors) setErrors(profile.fieldErrors);
@@ -230,8 +231,10 @@ function OnboardingExperience({
                   <ProfileFields
                     name={name}
                     bio={bio}
+                    birthday={birthday}
                     onNameChange={setName}
                     onBioChange={setBio}
+                    onBirthdayChange={setBirthday}
                     errors={errors}
                     disabled={pending}
                   />

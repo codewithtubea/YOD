@@ -4,6 +4,7 @@ export type MyAccount = {
   id: string;
   displayName: string;
   bio: string | null;
+  birthday: string | null;
   avatarPath: string | null;
   avatarUrl: string | null;
   joinedAt: string;
@@ -17,6 +18,7 @@ export type MemberProfile = {
   id: string;
   displayName: string;
   bio: string | null;
+  birthday: string | null;
   avatarPath: string | null;
   avatarUrl: string | null;
   joinedAt: string;

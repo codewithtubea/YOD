@@ -24,7 +24,7 @@ import type { MemberSettingsInput } from "@/lib/validation/account";
 
 type MemberGate =
   | { ok: true; userId: string }
-  | { ok: false; message: string };
+  | { ok: false, message: string };
 
 type DatabaseError = { code?: string; message?: string } | null;
 
@@ -90,6 +90,7 @@ function refreshAccount() {
 export async function saveProfile(input: {
   displayName: string;
   bio?: string;
+  birthday?: string | null;
 }): Promise<ActionResult> {
   const gate = await memberGate();
   if (!gate.ok) return gate;
@@ -107,6 +108,7 @@ export async function saveProfile(input: {
   const { error } = await supabase.rpc("save_my_profile", {
     p_display_name: parsed.data.displayName,
     p_bio: parsed.data.bio,
+    p_birthday: parsed.data.birthday,
   });
 
   if (error) return { ok: false, message: databaseMessage(error) };

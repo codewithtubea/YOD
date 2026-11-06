@@ -14,6 +14,7 @@ type AccountRow = {
   id: string;
   display_name: string;
   bio: string | null;
+  birthday: string | null;
   avatar_path: string | null;
   joined_at: string;
   onboarded_at: string | null;
@@ -40,6 +41,11 @@ type SettingsRow = {
   notify_encouragements: boolean;
 };
 
+type BirthdayRow = {
+  user_id: string;
+  display_name: string;
+};
+
 export type MyAccountResult = {
   available: boolean;
   account: MyAccount | null;
@@ -62,6 +68,7 @@ function accountFromRow(row: AccountRow, avatarUrl: string | null): MyAccount {
     id: row.id,
     displayName: row.display_name,
     bio: row.bio,
+    birthday: row.birthday,
     avatarPath: row.avatar_path,
     avatarUrl,
     joinedAt: row.joined_at,
@@ -105,6 +112,7 @@ export const getMemberProfile = cache(
         id: data.id,
         displayName: data.display_name,
         bio: data.bio,
+        birthday: null,
         avatarPath: data.avatar_path,
         avatarUrl,
         joinedAt: data.joined_at,
@@ -139,6 +147,7 @@ export const getMemberDirectory = cache(
           id: row.id,
           displayName: row.display_name,
           bio: row.bio,
+          birthday: null,
           avatarPath: row.avatar_path,
           avatarUrl: row.avatar_path ? (urls.get(row.avatar_path) ?? null) : null,
           joinedAt: row.joined_at,
@@ -202,6 +211,26 @@ export const getMyContributions = cache(
       };
     } catch {
       return { thoughts: 0, replies: 0, prayersShared: 0 };
+    }
+  },
+);
+
+export const getTodayBirthdays = cache(
+  async (): Promise<{ available: boolean; names: string[] }> => {
+    try {
+      const supabase = await createClient();
+      const { data, error } = await supabase.rpc("get_today_birthdays");
+
+      if (error || !data) return { available: false, names: [] };
+
+      const names = (data as BirthdayRow[])
+        .map((row) => row.display_name)
+        .filter(Boolean)
+        .sort((left, right) => left.localeCompare(right));
+
+      return { available: names.length > 0, names };
+    } catch {
+      return { available: false, names: [] };
     }
   },
 );

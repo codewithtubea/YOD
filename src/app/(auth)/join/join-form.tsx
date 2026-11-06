@@ -13,6 +13,7 @@ export function JoinForm({
 }) {
   const [email, setEmail] = useState(initialEmail);
   const [displayName, setDisplayName] = useState("");
+  const [birthday, setBirthday] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -31,7 +32,7 @@ export function JoinForm({
     }
 
     startTransition(async () => {
-      const result = await join({ email, password, displayName, next });
+      const result = await join({ email, password, displayName, birthday, next });
       if (!result.ok) {
         setError(result.message);
         return;
@@ -92,6 +93,20 @@ export function JoinForm({
             onChange={(event) => setDisplayName(event.target.value)}
             placeholder="How the circle will know you"
             className="block min-h-12 w-full rounded-xl border border-line bg-surface-soft/70 px-4 py-3 text-base text-ink outline-none transition placeholder:text-ink-soft/50 focus:border-focus focus:ring-2 focus:ring-focus/15"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="join-birthday" className="block text-sm font-medium text-ink">
+            Your birthday
+          </label>
+          <input
+            id="join-birthday"
+            type="date"
+            required
+            value={birthday}
+            onChange={(event) => setBirthday(event.target.value)}
+            className="block min-h-12 w-full rounded-xl border border-line bg-surface-soft/70 px-4 py-3 text-base text-ink outline-none transition focus:border-focus focus:ring-2 focus:ring-focus/15"
           />
         </div>
 

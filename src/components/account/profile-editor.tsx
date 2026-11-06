@@ -23,19 +23,11 @@ export function ProfileEditor({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(account.displayName);
   const [bio, setBio] = useState(account.bio ?? "");
+  const [birthday, setBirthday] = useState(account.birthday ?? "");
   const [pending, setPending] = useState(false);
   const [errors, setErrors] = useState<Record<string, string[]>>();
   const { toast } = useToast();
   const router = useRouter();
-
-  function close() {
-    if (pending) return;
-    setName(account.displayName);
-    setBio(account.bio ?? "");
-    setErrors(undefined);
-    onRollback?.();
-    setOpen(false);
-  }
 
   async function submit() {
     const trimmedName = name.trim();
@@ -50,7 +42,7 @@ export function ProfileEditor({
     setPending(true);
     setErrors(undefined);
 
-    const result = await saveProfile({ displayName: name, bio });
+    const result = await saveProfile({ displayName: name, bio, birthday });
     setPending(false);
 
     if (!result.ok) {
@@ -67,6 +59,16 @@ export function ProfileEditor({
     toast({ title: "Profile updated", tone: "gold" });
     setOpen(false);
     router.refresh();
+  }
+
+  function close() {
+    if (pending) return;
+    setName(account.displayName);
+    setBio(account.bio ?? "");
+    setBirthday(account.birthday ?? "");
+    setErrors(undefined);
+    onRollback?.();
+    setOpen(false);
   }
 
   return (
@@ -107,8 +109,10 @@ export function ProfileEditor({
             <ProfileFields
               name={name}
               bio={bio}
+              birthday={birthday}
               onNameChange={setName}
               onBioChange={setBio}
+              onBirthdayChange={setBirthday}
               errors={errors}
               disabled={pending}
             />
