@@ -15,6 +15,17 @@ export const joinPasswordSchema = z
   .min(8, "Use at least 8 characters.")
   .max(1024, "That password is too long.");
 
+export const resetPasswordSchema = z
+  .object({
+    token: z.string().min(1),
+    password: joinPasswordSchema,
+    confirmPassword: z.string().min(1, "Confirm the new password."),
+  })
+  .refine((value) => value.password === value.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "The passwords do not match.",
+  });
+
 export const displayNameSchema = z
   .string()
   .trim()

@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 
 import { SignInForm } from "./sign-in-form";
-import { LivingSky } from "@/components/motion/living-sky";
+import { AuthScreen } from "@/components/auth/auth-screen";
 import { getAuthContext } from "@/lib/auth";
 import { readSupabaseEnv } from "@/lib/env";
 import { safeNextPath } from "@/lib/redirect";
-import { getSkyPeriod } from "@/lib/sky";
 import { signOut } from "@/lib/actions/sign-out";
 
 export const metadata: Metadata = {
@@ -36,52 +34,6 @@ function firstValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function AuthScreen({
-  eyebrow,
-  title,
-  description,
-  children,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-  children: ReactNode;
-}) {
-  return (
-    <main className="relative flex min-h-dvh flex-col overflow-hidden bg-canvas">
-      <LivingSky
-        contained
-        period={getSkyPeriod()}
-        className="opacity-80"
-      />
-
-      <div className="relative mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-5 py-12 sm:px-6">
-        <div className="mb-8 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gold">
-            YOD Circle
-          </p>
-          <p className="mt-6 text-[11px] font-medium uppercase tracking-[0.18em] text-ink-soft/70">
-            {eyebrow}
-          </p>
-          <h1 className="mt-2 font-serif text-4xl leading-tight text-ink">
-            {title}
-          </h1>
-          <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-ink-soft">
-            {description}
-          </p>
-        </div>
-
-        {children}
-
-        <p className="mx-auto mt-8 max-w-xs text-center text-xs leading-relaxed text-ink-soft/80">
-          A private circle. New accounts wait for a gentle admin approval
-          before they can enter.
-        </p>
-      </div>
-    </main>
-  );
-}
-
 function SignOutCard() {
   return (
     <form action={signOut}>
@@ -107,11 +59,13 @@ export default async function SignInPage({
     ? (ERROR_MESSAGES[errorKey] ??
       "We couldn't complete sign-in. Try again.")
     : null;
-  const initialNotice = firstValue(params.deleted)
-    ? "Your account has been deleted. Thank you for being part of the circle."
-    : firstValue(params.signedOut)
-      ? "You're signed out. Sign in again when you're ready."
-      : null;
+  const initialNotice = firstValue(params.reset)
+    ? "Your password has been updated. Sign in with your new password."
+    : firstValue(params.deleted)
+      ? "Your account has been deleted. Thank you for being part of the circle."
+      : firstValue(params.signedOut)
+        ? "You're signed out. Sign in again when you're ready."
+        : null;
 
   const env = readSupabaseEnv();
   const context = env.ok ? await getAuthContext() : null;

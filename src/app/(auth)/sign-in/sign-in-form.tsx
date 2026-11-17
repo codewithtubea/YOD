@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition, type FormEvent } from "react";
 
 import { signIn } from "./actions";
@@ -97,6 +98,13 @@ export function SignInForm({ next, initialError, initialNotice }: Props) {
         >
           {isPending ? "Signing in…" : "Sign in"}
         </button>
+
+        <Link
+          href={`/forgot-password?email=${encodeURIComponent(email)}`}
+          className="inline-flex min-h-11 w-full items-center justify-center text-sm font-medium text-ink-soft underline decoration-line underline-offset-4 transition hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        >
+          Forgot password?
+        </Link>
       </form>
 
       {error ? (

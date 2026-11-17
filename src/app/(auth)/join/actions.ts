@@ -1,10 +1,10 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { readSupabaseEnv } from "@/lib/env";
 import { safeNextPath } from "@/lib/redirect";
+import { getSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 import {
   displayNameSchema,
@@ -16,16 +16,6 @@ import {
 export type JoinResult =
   | { ok: true; needsConfirmation: boolean; message: string }
   | { ok: false; message: string };
-
-async function origin() {
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
-    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "");
-  }
-  const headerList = await headers();
-  const host = headerList.get("x-forwarded-host") ?? headerList.get("host");
-  const proto = headerList.get("x-forwarded-proto") ?? "http";
-  return host ? `${proto}://${host}` : "http://localhost:3000";
-}
 
 export async function join(input: {
   email: string;
@@ -62,7 +52,16 @@ export async function join(input: {
   }
 
   const next = safeNextPath(input.next);
-  const site = await origin();
+  const site = await getSiteUrl();
+
+  if (!site.ok) {
+    return {
+      ok: false,
+      message:
+        "Join links aren't configured for this deployment. Ask the circle admin to set the site URL.",
+    };
+  }
+
   let destination = next;
 
   try {
@@ -72,7 +71,7 @@ export async function join(input: {
       password: password.data,
       options: {
         data: { display_name: displayName.data, birthday: birthdayResult.data },
-        emailRedirectTo: `${site}/auth/callback?next=${encodeURIComponent(next)}`,
+        emailRedirectTo: `${site.url}/auth/callback?next=${encodeURIComponent(next)}`,
       },
     });
 

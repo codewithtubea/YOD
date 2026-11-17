@@ -1,7 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { readSupabaseEnv } from "@/lib/env";
+import { RESET_COOKIE, RESET_COOKIE_MAX_AGE } from "@/lib/password-reset";
 import { safeNextPath } from "@/lib/redirect";
+import { getSiteUrl } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 
 function noStoreRedirect(url: URL) {
@@ -12,12 +14,12 @@ function noStoreRedirect(url: URL) {
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
+  const site = await getSiteUrl();
+  const origin = site.ok ? site.url : requestUrl.origin;
   const next = safeNextPath(requestUrl.searchParams.get("next"));
 
   const signInWith = (params: string) =>
-    noStoreRedirect(
-      new URL(`/sign-in?${params}`, requestUrl.origin),
-    );
+    noStoreRedirect(new URL(`/sign-in?${params}`, origin));
 
   const errorCode =
     requestUrl.searchParams.get("error_code") ??
@@ -37,8 +39,13 @@ export async function GET(request: NextRequest) {
   const code = requestUrl.searchParams.get("code");
   const tokenHash = requestUrl.searchParams.get("token_hash");
   const type = requestUrl.searchParams.get("type");
+  const isRecovery =
+    type === "recovery" || requestUrl.searchParams.get("recovery") === "1";
   const otpType =
-    type === "email" || type === "magiclink" || type === "signup"
+    type === "email" ||
+    type === "magiclink" ||
+    type === "signup" ||
+    type === "recovery"
       ? type
       : null;
 
@@ -75,6 +82,21 @@ export async function GET(request: NextRequest) {
       return signInWith("error=link_invalid");
     }
 
+    if (isRecovery) {
+      const resetToken = crypto.randomUUID();
+      const resetUrl = new URL("/reset-password", origin);
+      resetUrl.searchParams.set("token", resetToken);
+      const response = noStoreRedirect(resetUrl);
+      response.cookies.set(RESET_COOKIE, resetToken, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: RESET_COOKIE_MAX_AGE,
+      });
+      return response;
+    }
+
     const { data: membership, error: membershipError } = await supabase
       .rpc("get_my_membership")
       .maybeSingle();
@@ -95,7 +117,7 @@ export async function GET(request: NextRequest) {
     const status = (membership as { status?: string }).status;
 
     if (status === "pending") {
-      return noStoreRedirect(new URL("/waiting", requestUrl.origin));
+      return noStoreRedirect(new URL("/waiting", origin));
     }
 
     if (status !== "active") {
@@ -103,7 +125,7 @@ export async function GET(request: NextRequest) {
       return signInWith("error=inactive");
     }
 
-    return noStoreRedirect(new URL(next, requestUrl.origin));
+    return noStoreRedirect(new URL(next, origin));
   } catch {
     return signInWith("error=auth");
   }

@@ -143,6 +143,18 @@ Success = the daily action takes under ~10 seconds and nobody feels surveilled.
   - [ ] Apply migration 11 to staging and run `tests/staging/phase7-*.sql`
   - [ ] Run staging-only Playwright join/approval flows and screenshot review
   - [ ] Final Phase 7 report and approval
+- [ ] **Phase 7 follow-up — Registration visibility, invite pre-approval, password reset, Vercel links.**
+  - [x] `/forgot-password` + `/reset-password` with a recovery-only cookie/token gate and generic responses
+  - [x] `recovery` OTP handling in `/auth/callback`; recovery email template in `supabase/config.toml`
+  - [x] New migration 14 restores open signup/invite pre-approval, repairs orphan auth users, and removes
+        the 250-member cap that hid pending requests from `/admin/members`
+  - [x] Staging SQL checks in `tests/staging/phase8-registration-and-dashboard.sql`
+  - [x] Canonical site URL helper rejects `*.vercel.app` preview hosts for auth/invite links
+  - [x] `pnpm lint`, `pnpm typecheck`, `pnpm test` pass (see final verification report)
+  - [ ] Apply migration 14 to staging, run the new staging SQL checks, then deploy; set
+        `NEXT_PUBLIC_SITE_URL`, Supabase Site URL/redirect allowlist, and disable Vercel Authentication
+        on the production domain
+  - [ ] Final Phase 7 follow-up report and approval
 - [ ] **Phase 8 — Recaps & extras.** Weekly recap, search, opt-in reminders, PWA, birthdays (consent).
 - [ ] **Phase 9 — Hardening & launch.** Security review, accessibility pass, performance, Playwright,
       Vercel deploy, backups, soft launch.
@@ -224,6 +236,10 @@ Recorded defaults; change only with a reason.
 | D69 | Replay every migration on a fresh local Postgres before deploy | The fresh replay caught duplicate constraint names in migration 8 and an `on conflict` ambiguity in migration 10 that would have broken the first deploy. Supabase auth/storage/RLS still require a staging run. |
 | D70 | Open registration with admin approval supersedes the invite-only gate (D7/D8) | The user asked anyone to register with email and password while keeping the circle private. A new account starts `pending`, sees only its own profile and the waiting room, and becomes `active` only through the audited admin approval RPC. An invite remains a one-email pre-approval. |
 | D71 | The public landing page explains the circle and routes to `/join` or `/sign-in` | Gives people arriving from WhatsApp a clear way in without exposing member content, and keeps the daily app behind approval. Pending and active sessions redirect away from the marketing page. |
+| D72 | Password recovery uses Supabase's built-in recovery email, a generic response, and a 15-minute HttpOnly cookie bound to a URL token | Members can reset a forgotten password without admin intervention, while the reset page cannot be used by an ordinary session to bypass the current-password check. No new email provider was added (D42 stands). |
+| D73 | Migration 14 supersedes migration 12's invite-required trigger and repairs orphan auth users | The birthday migration overwrote the open-registration trigger, so open signups failed and invites no longer skipped approval. Orphan accounts were invisible to the admin list because it inner-joined roles and capped results at 250. |
+| D74 | Auth and invite links are refused on `*.vercel.app` hosts unless `NEXT_PUBLIC_SITE_URL` is set | Vercel Deployment Protection showed members a "welcome / thank you for logging in" Vercel screen. The canonical origin is now explicit and preview hosts are never used for links that leave the app. |
+| D75 | Admin still copies and shares invite messages manually (D42 unchanged) | The invite already pre-approves the email; automatic email delivery would require new secrets and a sender, and the user shares links through WhatsApp. |
 
 ## Open questions
 

@@ -46,9 +46,11 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 Use the **publishable** key. Never put the secret/service-role key in `.env.local`, `NEXT_PUBLIC_*`,
 client code, logs, or Git. `.env.local` is gitignored.
 
-`NEXT_PUBLIC_SITE_URL` is optional. It is used for invite links and the legacy auth callback route.
-For phone testing use your Mac's LAN address, not `localhost`; see
-[Sign-in troubleshooting](#sign-in-troubleshooting).
+`NEXT_PUBLIC_SITE_URL` is optional locally but **required for Vercel deployments**. It is the canonical
+origin for invite links, signup confirmation links, and password-reset links. If it is missing, the app
+will refuse to build those links on a `*.vercel.app` host — otherwise members are intercepted by Vercel's
+"welcome / thank you for logging in" access gate instead of YOD Circle. For phone testing use your Mac's
+LAN address, not `localhost`; see [Sign-in troubleshooting](#sign-in-troubleshooting).
 
 ```bash
 pnpm dev
@@ -77,6 +79,9 @@ Or paste each file into Supabase → SQL Editor:
 9. `supabase/migrations/20261029150000_member_experience.sql`
 10. `supabase/migrations/20261102120000_weekly_check_in.sql`
 11. `supabase/migrations/20261103120000_open_registration.sql`
+12. `supabase/migrations/20261104120000_birthday_notice.sql`
+13. `supabase/migrations/20261106120000_scalability_hardening.sql`
+14. `supabase/migrations/20261117120000_registration_and_admin_listing.sql`
 
 The foundation migration creates `profiles`, `member_roles`, `invites`, RLS, the original invite
 gate, and the `updated_at` trigger. The auth migration adds profile status, invite reservation/acceptance,
@@ -92,14 +97,19 @@ notification preferences, avatars, data export, account deletion, and concerns. 
 migration adds private check-ins and encouragement notes, aggregate presence, admin care RPCs, gentle
 nudges, and extends the notification and export/delete paths. The open-registration migration lets
 anyone request an account, starts every non-invited account as `pending`, and adds the admin approval
-RPC and pending-member counts. Do not edit an applied migration; add a new one.
+RPC and pending-member counts. The birthday migration adds private birthdays. The scalability migration
+adds indexes. The registration-and-admin-listing migration (14) restores open registration plus invite
+pre-approval after the birthday migration overwrote the signup trigger, repairs accounts that exist in
+`auth.users` without a visible profile or role, and stops the admin member list from capping out pending
+requests. Do not edit an applied migration; add a new one.
 
 ### Deploy checklist
 
-1. **Apply migrations 7–11 on staging first.** Link the staging project, run `pnpm db:push`, and confirm with
-   `pnpm supabase migration list`. Do not re-run migrations 1–6. If migration history is messy, paste
-   only the five pending files into the SQL Editor in order. The app shows an honest “not ready” state
-   until they are applied. Registration stays invite-only until migration 11 is applied.
+1. **Apply migrations on staging first.** Link the staging project, run `pnpm db:push`, and confirm with
+   `pnpm supabase migration list`. Do not re-run already-applied migrations. If migration history is
+   messy, paste the missing files into the SQL Editor in order. Migration 14 must be applied after 12;
+   it is what restores open registration and invite pre-approval. Registration stays invite-only until
+   migration 11 is applied.
 2. **Run the staging checks** before production:
    ```bash
    node scripts/assert-staging.mjs
@@ -108,19 +118,28 @@ RPC and pending-member counts. Do not edit an applied migration; add a new one.
    psql "$STAGING_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/staging/phase6-functional.sql
    psql "$STAGING_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/staging/phase7-registration.sql
    psql "$STAGING_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/staging/phase7-security.sql
+   psql "$STAGING_DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/staging/phase8-registration-and-dashboard.sql
    ```
    `phase6-functional.sql` and `phase7-registration.sql` run in a transaction and roll back; they need
    the same Supabase auth trigger stubs as the real project and are staging-only.
 3. **Vercel env** (`Production` and `Preview`):
    `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and
    `NEXT_PUBLIC_SITE_URL=https://<your-domain>`. Never add a service-role/secret key.
-4. **Supabase Auth**: set the production Site URL, add `https://<your-domain>/auth/callback` and
-   `https://<your-domain>/join` to the redirect allowlist, and confirm the email template still uses
-   `{{ .ConfirmationURL }}`. Configure custom SMTP before inviting real members.
-5. **Seed the first admin** from the dashboard (see below), then verify `/join` and the approval flow
-   in `/admin/members`.
-6. **Build gate**: `pnpm lint && pnpm typecheck && pnpm test && pnpm build`.
-7. **Post-deploy smoke** on a phone: sign in, open Today, save a reflection, pray, open Affirmation,
+4. **Supabase Auth**: set the production Site URL to `https://<your-domain>`, add
+   `https://<your-domain>/auth/callback` and `https://<your-domain>/join` to the redirect allowlist,
+   and confirm the confirmation template still uses `{{ .ConfirmationURL }}`. For password resets,
+   enable the recovery template in `supabase/config.toml` (or set the same body in Dashboard →
+   Authentication → Email Templates → Recovery) so the link points at
+   `{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=recovery`. Configure custom SMTP
+   before inviting real members; Supabase's built-in sender is rate-limited and may land in spam.
+5. **Vercel access**: use a custom domain for the real app and turn off **Vercel Authentication /
+   Deployment Protection** on that production domain. Keep previews protected, but never let an auth
+   email or invite link point at a `*.vercel.app` preview URL — that is the "welcome from Vercel" screen
+   members were seeing. The app refuses to generate those links unless `NEXT_PUBLIC_SITE_URL` is set.
+6. **Seed the first admin** from the dashboard (see below), then verify `/join`, `/forgot-password`, and
+   the approval flow in `/admin/members`.
+7. **Build gate**: `pnpm lint && pnpm typecheck && pnpm test && pnpm build`.
+8. **Post-deploy smoke** on a phone: sign in, open Today, save a reflection, pray, open Affirmation,
    save a check-in, and open `/admin/care` as an admin. Confirm private notes do not appear anywhere
    member-facing.
 
@@ -142,6 +161,17 @@ Sign-in is **password-only**; there is no magic-link flow. Accounts created with
 in Supabase → Authentication → Users can sign in immediately, but they still need admin approval unless
 an invite covered that email. After signup, the person can sign in and see only the waiting room until
 an admin approves them.
+
+### Password reset
+
+The sign-in form has a **Forgot password?** link to `/forgot-password`. It asks for the email, calls
+Supabase `resetPasswordForEmail`, and always shows the same generic confirmation so it cannot be used to
+probe who has an account. The recovery link lands on `/auth/callback`, which exchanges the token, sets a
+short-lived, HttpOnly reset cookie, and sends the person to `/reset-password`. That page requires both
+the cookie and the matching URL token, so an ordinary signed-in session cannot use it to skip the
+current-password check in **Settings → Change password**. After saving, the session is signed out and
+the person is sent back to sign in. Reset links expire with the Supabase OTP (one hour by default) and
+the extra cookie after 15 minutes.
 
 ## Member experience
 
@@ -212,10 +242,19 @@ Authentication → URL Configuration:
 
 Auth → Providers → Email: keep the email provider enabled. Email confirmation may stay enabled;
 accounts created by an admin with **Auto Confirm User** can sign in immediately. Sign-in never sends
-email, but account deletion re-verification sends a one-time code, so configure SMTP before relying on
-the leave flow. Accounts created with **Auto Confirm User** can sign in immediately.
+email, but password reset and account deletion re-verification do, so configure SMTP before relying on
+either flow. Accounts created with **Auto Confirm User** can sign in immediately.
 
 ## Sign-in troubleshooting
+
+**Members see "Welcome to Vercel" or "Thank you for logging in" instead of YOD Circle.**
+
+That is Vercel's Deployment Protection, not a YOD Circle message. An auth or invite email linked to a
+`*.vercel.app` preview URL, so Vercel asked them to authenticate with Vercel before showing the app.
+Set `NEXT_PUBLIC_SITE_URL` to the real domain, set Supabase Auth → URL Configuration → Site URL to the
+same domain, allowlist the callback and join URLs, and disable Vercel Authentication on the production
+domain. The app now refuses to generate links from a Vercel preview host and shows a setup message
+instead.
 
 **The password is rejected.**
 
