@@ -18,6 +18,7 @@ returns table (
   display_name text
 )
 language plpgsql
+stable
 security definer
 set search_path = ''
 as $$
@@ -34,12 +35,17 @@ begin
     and r.role in ('member', 'admin')
     and p.birthday is not null
     and extract(month from p.birthday) = v_today_month
-    and extract(day from p.birthday) = v_today_day;
+    and extract(day from p.birthday) = v_today_day
+  order by p.display_name;
 end;
 $$;
 
 revoke all on function public.get_today_birthdays() from public, anon;
 grant execute on function public.get_today_birthdays() to authenticated;
+
+-- The return type gains a birthday column, so the old function must be dropped
+-- before it can be recreated (CREATE OR REPLACE cannot change a return type).
+drop function if exists public.get_my_account();
 
 create or replace function public.get_my_account()
 returns table (
@@ -84,6 +90,10 @@ begin
   where p.id = v_uid;
 end;
 $$;
+
+-- Drop the old two-argument overload so PostgREST has a single unambiguous
+-- save_my_profile function (the new one keeps p_birthday optional).
+drop function if exists public.save_my_profile(text, text);
 
 create or replace function public.save_my_profile(
   p_display_name text,

@@ -33,7 +33,7 @@ import { MemberTour } from "@/components/study/member-tour";
 import { ReadingActions } from "@/components/study/reading-actions";
 import { AnnouncementBanner } from "@/components/study/announcement-banner";
 import { SermonShelf } from "@/components/study/sermon-shelf";
-import { getMyAccount, getTodayBirthdays } from "@/lib/account/data";
+import { getTodayBirthdays } from "@/lib/account/data";
 
 export const metadata: Metadata = {
   title: "Today",
@@ -120,7 +120,7 @@ export default async function TodayPage({
 
   const date = requested ?? today;
   const catchingUp = date < today;
-  const [data, announcement, sermons, affirmation, checkIn, birthdays, account] = await Promise.all([
+  const [data, announcement, sermons, affirmation, checkIn, birthdays] = await Promise.all([
     getTodayData({ planDate: date }),
     !catchingUp ? getCurrentAnnouncement() : Promise.resolve(null),
     !catchingUp
@@ -129,10 +129,8 @@ export default async function TodayPage({
     getAffirmationByDate(date),
     getCheckInData(),
     getTodayBirthdays(),
-    getMyAccount(),
   ]);
 
-  const currentAccount = account.account;
   const birthdayNotice =
     birthdays.available && birthdays.names.length > 0
       ? birthdays.names.length === 1
@@ -141,10 +139,8 @@ export default async function TodayPage({
       : null;
 
   const birthdayMessage =
-    birthdayNotice && currentAccount
-      ? birthdays.names.some((name) => name === currentAccount.displayName)
-        ? `Happy birthday, ${currentAccount.displayName}! ${birthdayNotice}`
-        : birthdayNotice
+    birthdayNotice && birthdays.userIds.includes(userId)
+      ? `Happy birthday, ${membership.display_name}! ${birthdayNotice}`
       : birthdayNotice;
 
   const viewer = {

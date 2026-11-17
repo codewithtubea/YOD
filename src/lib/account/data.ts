@@ -216,21 +216,30 @@ export const getMyContributions = cache(
 );
 
 export const getTodayBirthdays = cache(
-  async (): Promise<{ available: boolean; names: string[] }> => {
+  async (): Promise<{
+    available: boolean;
+    names: string[];
+    userIds: string[];
+  }> => {
     try {
       const supabase = await createClient();
       const { data, error } = await supabase.rpc("get_today_birthdays");
 
-      if (error || !data) return { available: false, names: [] };
+      if (error || !data) return { available: false, names: [], userIds: [] };
 
-      const names = (data as BirthdayRow[])
-        .map((row) => row.display_name)
-        .filter(Boolean)
-        .sort((left, right) => left.localeCompare(right));
+      const rows = (data as BirthdayRow[])
+        .filter((row) => Boolean(row.display_name))
+        .sort((left, right) =>
+          left.display_name.localeCompare(right.display_name),
+        );
 
-      return { available: names.length > 0, names };
+      return {
+        available: rows.length > 0,
+        names: rows.map((row) => row.display_name),
+        userIds: rows.map((row) => row.user_id),
+      };
     } catch {
-      return { available: false, names: [] };
+      return { available: false, names: [], userIds: [] };
     }
   },
 );
